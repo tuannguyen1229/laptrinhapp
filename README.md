@@ -219,10 +219,5 @@ Nếu có vấn đề, hãy liên hệ qua:
 - GitHub: https://github.com/nttung294iot
 - GitHub Issues: https://github.com/nttung294iot/laptrinhapp/issues
 
-## 📝 License
-
-MIT License - Tự do sử dụng cho mục đích học tập và thương mại.
-
 ---
 
-**Chúc bạn code vui vẻ! 🎉**
