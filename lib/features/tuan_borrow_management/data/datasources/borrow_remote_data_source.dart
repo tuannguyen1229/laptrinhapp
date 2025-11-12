@@ -1,0 +1,372 @@
+import 'package:dartz/dartz.dart';
+import '../../../../core/errors/failures.dart';
+import '../../../../shared/database/database_helper.dart';
+import '../../../../shared/models/borrow_card.dart';
+
+abstract class BorrowRemoteDataSource {
+  Future<Either<Failure, BorrowCard>> createBorrowCard(BorrowCard borrowCard);
+  Future<Either<Failure, BorrowCard?>> getBorrowCardById(int id);
+  Future<Either<Failure, List<BorrowCard>>> getAllBorrowCards();
+  Future<Either<Failure, BorrowCard>> updateBorrowCard(BorrowCard borrowCard);
+  Future<Either<Failure, bool>> deleteBorrowCard(int id);
+  Future<Either<Failure, List<BorrowCard>>> getBorrowCardsByStatus(BorrowStatus status);
+  Future<Either<Failure, List<BorrowCard>>> searchBorrowCards(String query);
+  Future<Either<Failure, List<BorrowCard>>> getBorrowCardsWithPagination({
+    int page = 1,
+    int limit = 20,
+  });
+  Future<Either<Failure, int>> getTotalBorrowCardsCount();
+  Future<Either<Failure, List<BorrowCard>>> getOverdueBorrowCards();
+}
+
+class BorrowRemoteDataSourceImpl implements BorrowRemoteDataSource {
+  final DatabaseHelper databaseHelper;
+
+  BorrowRemoteDataSourceImpl({required this.databaseHelper});
+
+  @override
+  Future<Either<Failure, BorrowCard>> createBorrowCard(BorrowCard borrowCard) async {
+    try {
+      final now = DateTime.now();
+      final borrowCardData = borrowCard.copyWith(
+        createdAt: now,
+        updatedAt: now,
+      ).toJson();
+      
+      // Remove id for insert
+      borrowCardData.remove('id');
+      
+      // First, decrease available_copies in books table
+      if (borrowCard.bookCode != null && borrowCard.bookCode!.isNotEmpty) {
+        final updateBookResult = await databaseHelper.executeRemoteQuery(
+          '''
+          UPDATE books 
+          SET available_copies = available_copies - 1 
+          WHERE book_code = '${borrowCard.bookCode}' AND available_copies > 0
+          RETURNING available_copies
+          ''',
+        );
+        
+        await updateBookResult.fold(
+          (failure) {
+            print('⚠️ Warning: Could not update book availability: ${failure.message}');
+          },
+          (rows) {
+            if (rows.isEmpty) {
+              print('⚠️ Warning: Book not found or no copies available');
+            } else {
+              final remainingCopies = rows.first['available_copies'] as int;
+              print('✅ Book available_copies updated: $remainingCopies remaining');
+            }
+          },
+        );
+      }
+      
+      final result = await databaseHelper.executeRemoteInsert(
+        'borrow_cards',
+        borrowCardData,
+      );
+
+      return result.fold(
+        (failure) => Left(failure),
+        (id) async {
+          final createdCard = borrowCard.copyWith(
+            id: id,
+            createdAt: now,
+            updatedAt: now,
+          );
+          return Right(createdCard);
+        },
+      );
+    } catch (e) {
+      return Left(DatabaseFailure('Failed to create borrow card: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, BorrowCard?>> getBorrowCardById(int id) async {
+    try {
+      final result = await databaseHelper.executeRemoteQuery(
+        'SELECT * FROM borrow_cards WHERE id = $id',
+      );
+
+      return result.fold(
+        (failure) => Left(failure),
+        (rows) {
+          if (rows.isEmpty) {
+            return const Right(null);
+          }
+          final borrowCard = BorrowCard.fromJson(rows.first);
+          return Right(borrowCard);
+        },
+      );
+    } catch (e) {
+      return Left(DatabaseFailure('Failed to get borrow card by id: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<BorrowCard>>> getAllBorrowCards() async {
+    try {
+      final result = await databaseHelper.executeRemoteQuery(
+        'SELECT * FROM borrow_cards ORDER BY created_at DESC',
+      );
+
+      return result.fold(
+        (failure) => Left(failure),
+        (rows) {
+          final borrowCards = rows.map((row) => BorrowCard.fromJson(row)).toList();
+          return Right(borrowCards);
+        },
+      );
+    } catch (e) {
+      return Left(DatabaseFailure('Failed to get all borrow cards: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, BorrowCard>> updateBorrowCard(BorrowCard borrowCard) async {
+    try {
+      if (borrowCard.id == null) {
+        return const Left(ValidationFailure('Borrow card ID is required for update'));
+      }
+
+      // Get old status to check if book is being returned
+      final oldCardResult = await getBorrowCardById(borrowCard.id!);
+      BorrowStatus? oldStatus;
+      await oldCardResult.fold(
+        (failure) => null,
+        (oldCard) {
+          oldStatus = oldCard?.status;
+        },
+      );
+
+      final updatedCard = borrowCard.copyWith(updatedAt: DateTime.now());
+      final borrowCardData = updatedCard.toJson();
+      borrowCardData.remove('id');
+      borrowCardData.remove('created_at'); // Don't update created_at
+
+      final result = await databaseHelper.executeRemoteUpdate(
+        'borrow_cards',
+        borrowCardData,
+        'id = ?',
+        [borrowCard.id!],
+      );
+
+      return result.fold(
+        (failure) => Left(failure),
+        (count) async {
+          if (count == 0) {
+            return const Left(DatabaseFailure('No borrow card found to update'));
+          }
+          
+          // If status changed to returned, increase available_copies
+          if (oldStatus != BorrowStatus.returned && 
+              borrowCard.status == BorrowStatus.returned &&
+              borrowCard.bookCode != null && 
+              borrowCard.bookCode!.isNotEmpty) {
+            final updateBookResult = await databaseHelper.executeRemoteQuery(
+              '''
+              UPDATE books 
+              SET available_copies = available_copies + 1 
+              WHERE book_code = '${borrowCard.bookCode}'
+              RETURNING available_copies
+              ''',
+            );
+            
+            await updateBookResult.fold(
+              (failure) {
+                print('⚠️ Warning: Could not update book availability on return: ${failure.message}');
+              },
+              (rows) {
+                if (rows.isNotEmpty) {
+                  final remainingCopies = rows.first['available_copies'] as int;
+                  print('✅ Book returned, available_copies updated: $remainingCopies available');
+                }
+              },
+            );
+          }
+          
+          return Right(updatedCard);
+        },
+      );
+    } catch (e) {
+      return Left(DatabaseFailure('Failed to update borrow card: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> deleteBorrowCard(int id) async {
+    try {
+      // Get borrow card info before deleting
+      final cardResult = await getBorrowCardById(id);
+      String? bookCode;
+      BorrowStatus? cardStatus;
+      
+      await cardResult.fold(
+        (failure) => null,
+        (card) {
+          bookCode = card?.bookCode;
+          cardStatus = card?.status;
+        },
+      );
+      
+      // Delete the borrow card
+      final result = await databaseHelper.executeRemoteDelete(
+        'borrow_cards',
+        'id = ?',
+        [id],
+      );
+
+      return result.fold(
+        (failure) => Left(failure),
+        (count) async {
+          if (count == 0) {
+            return const Right(false);
+          }
+          
+          // If card was not returned yet, increase available_copies (treat as return)
+          if (bookCode != null && 
+              bookCode!.isNotEmpty && 
+              cardStatus != null && 
+              cardStatus != BorrowStatus.returned) {
+            final updateBookResult = await databaseHelper.executeRemoteQuery(
+              '''
+              UPDATE books 
+              SET available_copies = available_copies + 1 
+              WHERE book_code = '$bookCode'
+              RETURNING available_copies
+              ''',
+            );
+            
+            await updateBookResult.fold(
+              (failure) {
+                print('⚠️ Warning: Could not update book availability on delete: ${failure.message}');
+              },
+              (rows) {
+                if (rows.isNotEmpty) {
+                  final remainingCopies = rows.first['available_copies'] as int;
+                  print('✅ Borrow card deleted, book returned, available_copies: $remainingCopies');
+                }
+              },
+            );
+          }
+          
+          return const Right(true);
+        },
+      );
+    } catch (e) {
+      return Left(DatabaseFailure('Failed to delete borrow card: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<BorrowCard>>> getBorrowCardsByStatus(BorrowStatus status) async {
+    try {
+      final result = await databaseHelper.executeRemoteQuery(
+        "SELECT * FROM borrow_cards WHERE status = '${status.name}' ORDER BY created_at DESC",
+      );
+
+      return result.fold(
+        (failure) => Left(failure),
+        (rows) {
+          final borrowCards = rows.map((row) => BorrowCard.fromJson(row)).toList();
+          return Right(borrowCards);
+        },
+      );
+    } catch (e) {
+      return Left(DatabaseFailure('Failed to get borrow cards by status: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<BorrowCard>>> searchBorrowCards(String query) async {
+    try {
+      final searchQuery = '%$query%';
+      final result = await databaseHelper.executeRemoteQuery(
+        '''
+        SELECT * FROM borrow_cards 
+        WHERE borrower_name ILIKE '$searchQuery' OR book_name ILIKE '$searchQuery' 
+        ORDER BY created_at DESC
+        ''',
+      );
+
+      return result.fold(
+        (failure) => Left(failure),
+        (rows) {
+          final borrowCards = rows.map((row) => BorrowCard.fromJson(row)).toList();
+          return Right(borrowCards);
+        },
+      );
+    } catch (e) {
+      return Left(DatabaseFailure('Failed to search borrow cards: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<BorrowCard>>> getBorrowCardsWithPagination({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final offset = (page - 1) * limit;
+      // Use positional parameters for postgres 3.x
+      final result = await databaseHelper.executeRemoteQuery(
+        'SELECT * FROM borrow_cards ORDER BY created_at DESC LIMIT $limit OFFSET $offset',
+      );
+
+      return result.fold(
+        (failure) => Left(failure),
+        (rows) {
+          final borrowCards = rows.map((row) => BorrowCard.fromJson(row)).toList();
+          return Right(borrowCards);
+        },
+      );
+    } catch (e) {
+      return Left(DatabaseFailure('Failed to get borrow cards with pagination: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, int>> getTotalBorrowCardsCount() async {
+    try {
+      final result = await databaseHelper.executeRemoteQuery(
+        'SELECT COUNT(*) as count FROM borrow_cards',
+      );
+
+      return result.fold(
+        (failure) => Left(failure),
+        (rows) {
+          final count = rows.first['count'] as int;
+          return Right(count);
+        },
+      );
+    } catch (e) {
+      return Left(DatabaseFailure('Failed to get total borrow cards count: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<BorrowCard>>> getOverdueBorrowCards() async {
+    try {
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      final result = await databaseHelper.executeRemoteQuery(
+        '''
+        SELECT * FROM borrow_cards 
+        WHERE status != 'returned' AND expected_return_date < '$today' 
+        ORDER BY expected_return_date ASC
+        ''',
+      );
+
+      return result.fold(
+        (failure) => Left(failure),
+        (rows) {
+          final borrowCards = rows.map((row) => BorrowCard.fromJson(row)).toList();
+          return Right(borrowCards);
+        },
+      );
+    } catch (e) {
+      return Left(DatabaseFailure('Failed to get overdue borrow cards: $e'));
+    }
+  }
+}
