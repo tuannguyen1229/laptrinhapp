@@ -14,7 +14,7 @@ import 'features/user_management/presentation/screens/user_management_screen.dar
 import 'features/user_borrows/presentation/screens/user_borrows_screen.dart';
 import 'config/themes/app_theme.dart';
 
-//           flutter run -d emulator-5554
+//           flutter run -d emulator-5554  (thay 5554 bằng id chính xác của máy ảo)
 
 
 void main() async {
