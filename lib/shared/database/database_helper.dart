@@ -18,15 +18,9 @@ class DatabaseHelper {
 
   /// Get remote PostgreSQL connection
   Future<pg.Connection> get connection async {
-    if (_remoteConnection == null) {
-      await initializeRemoteDatabase().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          print('⚠️ Database connection timeout, using local database only');
-          return const Right('Timeout - using local database');
-        },
-      );
-    }
+    // Always ensure connection is active
+    await _ensureRemoteConnection();
+    
     if (_remoteConnection == null) {
       throw Exception('Failed to connect to remote database');
     }

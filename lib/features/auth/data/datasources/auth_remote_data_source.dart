@@ -32,9 +32,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<UserModel> login(String username, String password) async {
-    final connection = await _databaseHelper.connection;
-
     try {
+      // Ensure connection is active before querying
+      final connection = await _databaseHelper.connection;
+
       // Get user by username
       final result = await connection.execute(
         Sql.named('''
