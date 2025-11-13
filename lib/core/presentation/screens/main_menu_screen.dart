@@ -521,7 +521,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                       color: Colors.orange,
                       onTap: () {
                         setState(() {
-                          _selectedIndex = 2; // Go to Overdue screen
+                          _selectedIndex = 4; // Go to Borrow Status (Mượn/Trả) screen
                         });
                       },
                     ),
