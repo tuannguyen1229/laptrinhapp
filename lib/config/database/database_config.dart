@@ -4,11 +4,17 @@ class DatabaseConfig {
   // 10.0.2.2 - Android emulator standard
   // 192.168.x.x - IP máy bạn trong mạng local
   // localhost - Chỉ work trên Windows desktop
-  static const String postgresHost = '10.0.2.2'; // IP đặc biệt cho Android emulator
+  
+  // 🌐 CLOUDFLARE TUNNEL / NGROK - Kết nối từ xa qua internet
+  // Uncomment 2 dòng dưới và comment 2 dòng local khi dùng tunnel:
+  // static const String postgresHost = 'random-name.trycloudflare.com'; // ⬅️ Cloudflare tunnel URL
+  // static const int postgresPort = 7844; // ⬅️ Cloudflare tunnel port
+  
+  static const String postgresHost = 'app.ptitavitech.online'; // ⬅️ ĐỔI
   static const int postgresPort = 5432;
   static const String postgresDatabase = 'quan_ly_thu_vien_dev';
-  static const String postgresUsername = 'postgres'; // Thay đổi theo username của bạn
-  static const String postgresPassword = '1234'; // Thay đổi theo password của bạn
+  static const String postgresUsername = 'postgres';
+  static const String postgresPassword = '1234';
   
   // SQLite Configuration (for local storage)
   static const String sqliteDbName = 'library_management.db';
