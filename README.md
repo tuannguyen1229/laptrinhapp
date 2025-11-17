@@ -55,10 +55,9 @@
 
 - Flutter SDK >= 3.0.0
 - Dart SDK >= 3.0.0
+- PostgreSQL >= 12.0
 - Android Studio / VS Code
 - Android Emulator hoặc thiết bị thật
-
-> **Lưu ý:** Database và Email đã được cấu hình sẵn, bạn chỉ cần chạy app!
 
 ## 🚀 Hướng dẫn cài đặt
 
@@ -69,13 +68,60 @@ git clone https://github.com/nttung294iot/laptrinhapp.git
 cd laptrinhapp
 ```
 
-### 2. Cài đặt dependencies
+### 2. Setup PostgreSQL Database
+
+#### Cách 1: Tự động (Khuyến nghị)
+
+```cmd
+cd database
+setup_database.bat
+```
+
+Script sẽ tự động:
+- Tạo database `quan_ly_thu_vien_dev`
+- Import toàn bộ cấu trúc tables
+- Thêm dữ liệu mẫu (5 sách, 5 độc giả, 5 phiếu mượn)
+
+#### Cách 2: Thủ công
+
+1. Cài đặt PostgreSQL từ: https://www.postgresql.org/download/windows/
+2. Mở pgAdmin 4
+3. Tạo database tên `quan_ly_thu_vien_dev`
+4. Chạy file `database/setup_postgres.sql`
+
+**Xem hướng dẫn chi tiết:** [database/SETUP_GUIDE.md](database/SETUP_GUIDE.md)
+
+### 3. Cấu hình kết nối Database
+
+Mở file `lib/config/database/database_config.dart` và cập nhật:
+
+```dart
+// Cho Windows Desktop App
+static const String postgresHost = 'localhost';
+
+// Cho Android Emulator
+static const String postgresHost = '10.0.2.2';
+
+// Cho Android Device (điện thoại thật)
+static const String postgresHost = '192.168.x.x';  // IP máy tính của bạn
+```
+
+**Xem các ví dụ cấu hình:** [database/config_examples.md](database/config_examples.md)
+
+### 4. Kiểm tra kết nối Database
+
+```cmd
+cd database
+test_connection.bat
+```
+
+### 5. Cài đặt Flutter dependencies
 
 ```bash
 flutter pub get
 ```
 
-### 3. Chạy ứng dụng
+### 6. Chạy ứng dụng
 
 ```bash
 # Kiểm tra devices

@@ -5,24 +5,37 @@ class DatabaseConfig {
   // 192.168.x.x - IP máy bạn trong mạng local
   // localhost - Chỉ work trên Windows desktop
   
-  // 🌐 CLOUDFLARE TUNNEL / NGROK - Kết nối từ xa qua internet
-  // Uncomment 2 dòng dưới và comment 2 dòng local khi dùng tunnel:
-  // static const String postgresHost = 'random-name.trycloudflare.com'; // ⬅️ Cloudflare tunnel URL
-  // static const int postgresPort = 7844; // ⬅️ Cloudflare tunnel port
+  // 🌐 CONFIG MODE - Đổi giá trị này để chuyển đổi:
+  // 'local' - Kết nối local (chỉ bạn dùng được)
+  // 'remote' - Kết nối qua internet (mọi người dùng chung)
+  static const String connectionMode = 'remote'; // ⬅️ ĐỔI 'local' hoặc 'remote'
   
-  static const String postgresHost = '172.20.10.5'; // ⬅️ ĐỔI
+  // Tự động chọn host
+  static String get postgresHost {
+    if (connectionMode == 'local') {
+      // REMOTE: Mọi người kết nối qua Cloudflare Tunnel
+      return 'db.nhutuan.io.vn';
+    } else {
+      // LOCAL: Chỉ máy bạn kết nối được
+      // Emulator: 10.0.2.2
+      // Windows Desktop: localhost
+      // Android Device: 192.168.x.x (IP máy tính trong LAN)
+      return '10.0.2.2'; // ⬅️ Đổi theo device của bạn
+    }
+  }
+  
   static const int postgresPort = 5432;
   static const String postgresDatabase = 'quan_ly_thu_vien_dev';
   static const String postgresUsername = 'postgres';
-  static const String postgresPassword = '1234';
+  static const String postgresPassword = ''; // ⬅️ Không dùng password
   
   // SQLite Configuration (for local storage)
   static const String sqliteDbName = 'library_management.db';
   static const int sqliteVersion = 1;
   
   // Connection timeout settings
-  static const Duration connectionTimeout = Duration(seconds: 30);
-  static const Duration queryTimeout = Duration(seconds: 15);
+  static const Duration connectionTimeout = Duration(seconds: 60); // Tăng lên cho emulator
+  static const Duration queryTimeout = Duration(seconds: 30);
   
   // Retry settings
   static const int maxRetryAttempts = 3;
