@@ -12,7 +12,7 @@ class DatabaseConfig {
   
   // Tự động chọn host
   static String get postgresHost {
-    if (connectionMode == 'local') {
+    if (connectionMode == 'remote') {
       // REMOTE: Mọi người kết nối qua Cloudflare Tunnel
       return 'db.nhutuan.io.vn';
     } else {
