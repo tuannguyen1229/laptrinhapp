@@ -359,16 +359,26 @@ class BorrowBloc extends Bloc<BorrowEvent, BorrowState> {
     MarkAsReturnedEvent event,
     Emitter<BorrowState> emit,
   ) async {
+    print('🔄 BLoC: Marking borrow ${event.borrowId} as returned...');
     emit(const BorrowLoading());
 
     final result = await repository.markAsReturned(event.borrowId);
 
     result.fold(
-      (failure) => emit(BorrowError(message: _mapFailureToMessage(failure))),
-      (updatedCard) => emit(BorrowOperationSuccess(
-        message: 'Đã đánh dấu sách đã trả thành công',
-        updatedCard: updatedCard,
-      )),
+      (failure) {
+        print('❌ BLoC: Mark as returned failed: ${failure.message}');
+        emit(BorrowError(message: _mapFailureToMessage(failure)));
+      },
+      (updatedCard) {
+        print('✅ BLoC: Mark as returned success');
+        print('   Card ID: ${updatedCard.id}');
+        print('   New status: ${updatedCard.status}');
+        print('   Actual return date: ${updatedCard.actualReturnDate}');
+        emit(BorrowOperationSuccess(
+          message: 'Đã đánh dấu sách đã trả thành công',
+          updatedCard: updatedCard,
+        ));
+      },
     );
   }
 

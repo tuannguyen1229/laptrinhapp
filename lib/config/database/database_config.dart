@@ -10,7 +10,7 @@ class DatabaseConfig {
   // static const String postgresHost = 'random-name.trycloudflare.com'; // ⬅️ Cloudflare tunnel URL
   // static const int postgresPort = 7844; // ⬅️ Cloudflare tunnel port
   
-  static const String postgresHost = 'app.ptitavitech.online'; // ⬅️ ĐỔI
+  static const String postgresHost = '172.20.10.5'; // ⬅️ ĐỔI
   static const int postgresPort = 5432;
   static const String postgresDatabase = 'quan_ly_thu_vien_dev';
   static const String postgresUsername = 'postgres';

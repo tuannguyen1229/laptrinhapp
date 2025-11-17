@@ -35,6 +35,14 @@
 - Báo cáo sách được mượn nhiều nhất
 - Xuất báo cáo PDF
 
+### 🤖 IoT - Trạm Quét Thẻ & Sách Tự động (NEW!)
+- Quét thẻ RFID sinh viên tự động
+- Quét barcode sách bằng camera ESP32-CAM
+- Hiển thị thông tin realtime trên LCD 16x2
+- Tự động điền form mượn sách trên app
+- Kết nối WiFi và gửi dữ liệu lên server
+- **Chi tiết:** [features/iot/README.md](features/iot/README.md)
+
 ## 🛠️ Công nghệ sử dụng
 
 - **Frontend**: Flutter (Dart)
@@ -121,6 +129,10 @@ lib/
 │   │   ├── domain/              # Entities, repositories interface
 │   │   └── presentation/        # Screens (login, forgot password), BLoC
 │   │
+│   ├── iot/                     # 🤖 IoT - Trạm Quét Tự động (NEW!)
+│   │   ├── data/                # WebSocket datasource, models
+│   │   └── presentation/        # IoT BLoC, widgets (status, listener)
+│   │
 │   ├── dashboard/               # 📊 Dashboard & Thống kê tổng quan
 │   │   ├── data/                # Dashboard services
 │   │   ├── domain/              # Dashboard entities
@@ -169,6 +181,15 @@ lib/
 
 database/
 └── setup_postgres.sql           # 📄 SQL script tạo database & dữ liệu mẫu
+
+features/iot/                    # 🤖 IoT Feature (ESP32-CAM + Flutter)
+├── esp32_firmware/              # ESP32-CAM firmware (C++)
+│   ├── src/                     # Source code (WiFi, RFID, LCD, API)
+│   ├── include/                 # Header files
+│   └── platformio.ini           # PlatformIO config
+├── README.md                    # Tổng quan IoT feature
+├── QUICK_START.md               # Bắt đầu nhanh (10 phút)
+└── IMPLEMENTATION_STATUS.md     # Trạng thái triển khai
 
 assets/
 └── fonts/                       # 🔤 Fonts cho PDF generation

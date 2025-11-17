@@ -71,6 +71,8 @@ class _SearchScreenState extends State<SearchScreen>
       // Clear search when switching tabs
       _searchController.clear();
       context.read<SearchBloc>().add(const ClearSearchEvent());
+      // Force rebuild để cập nhật hint text
+      setState(() {});
     }
   }
 

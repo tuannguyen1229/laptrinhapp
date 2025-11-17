@@ -75,9 +75,15 @@ class _BorrowDetailScreenState extends State<BorrowDetailScreen> {
       ),
       body: BlocListener<BorrowBloc, BorrowState>(
         listener: (context, state) {
+          print('📱 DetailScreen: Received state: ${state.runtimeType}');
+          
           if (state is BorrowOperationSuccess) {
+            print('✅ BorrowOperationSuccess: ${state.message}');
+            print('   updatedCard: ${state.updatedCard?.status}');
             _showSuccessMessage(state.message);
-            if (state.updatedCard != null) {
+            // Cập nhật trực tiếp từ updatedCard
+            if (state.updatedCard != null && mounted) {
+              print('   Updating UI with new card status: ${state.updatedCard!.status}');
               setState(() {
                 _borrowCard = state.updatedCard!;
               });
@@ -528,20 +534,24 @@ class _BorrowDetailScreenState extends State<BorrowDetailScreen> {
   }
 
   void _markAsReturned() {
+    // Lưu context gốc có BorrowBloc
+    final scaffoldContext = context;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Xác nhận'),
         content: const Text('Bạn có chắc chắn muốn đánh dấu sách này đã được trả?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Hủy'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop();
-              context.read<BorrowBloc>().add(
+              Navigator.of(dialogContext).pop();
+              // Sử dụng scaffoldContext thay vì dialogContext
+              scaffoldContext.read<BorrowBloc>().add(
                 MarkAsReturnedEvent(borrowId: _borrowCard.id!),
               );
             },
@@ -553,9 +563,12 @@ class _BorrowDetailScreenState extends State<BorrowDetailScreen> {
   }
 
   void _deleteBorrowCard() {
+    // Lưu context gốc có BorrowBloc
+    final scaffoldContext = context;
+    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Xác nhận xóa'),
         content: Text(
           'Bạn có chắc chắn muốn xóa thẻ mượn "${_borrowCard.bookName}"?\n\n'
@@ -563,18 +576,19 @@ class _BorrowDetailScreenState extends State<BorrowDetailScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Hủy'),
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop();
-              context.read<BorrowBloc>().add(
+              Navigator.of(dialogContext).pop();
+              // Sử dụng scaffoldContext thay vì dialogContext
+              scaffoldContext.read<BorrowBloc>().add(
                 DeleteBorrowEvent(borrowId: _borrowCard.id!),
               );
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
+              backgroundColor: Theme.of(scaffoldContext).colorScheme.error,
             ),
             child: const Text('Xóa'),
           ),

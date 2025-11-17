@@ -16,6 +16,9 @@ import 'config/themes/app_theme.dart';
 
 //           flutter run -d emulator-5554  (thay 5554 bằng id chính xác của máy ảo)
 
+//             cloudflared tunnel run library-db
+
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

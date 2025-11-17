@@ -158,24 +158,39 @@ class BorrowRepositoryImpl implements BorrowCardRepository {
   @override
   Future<Either<Failure, BorrowCard>> markAsReturned(int id) async {
     try {
+      print('🔄 Repository: Marking borrow $id as returned...');
       final cardResult = await getById(id);
       
       return cardResult.fold(
-        (failure) => Left(failure),
+        (failure) {
+          print('❌ Repository: Failed to get card: ${failure.message}');
+          return Left(failure);
+        },
         (card) async {
           if (card == null) {
+            print('❌ Repository: Card not found');
             return const Left(DatabaseFailure('Borrow card not found'));
           }
           
+          print('   Current status: ${card.status}');
           final returnedCard = card.copyWith(
             status: BorrowStatus.returned,
             actualReturnDate: DateTime.now(),
           );
+          print('   New status: ${returnedCard.status}');
+          print('   Actual return date: ${returnedCard.actualReturnDate}');
           
-          return await update(returnedCard);
+          final updateResult = await update(returnedCard);
+          updateResult.fold(
+            (failure) => print('❌ Repository: Update failed: ${failure.message}'),
+            (updated) => print('✅ Repository: Update success, status: ${updated.status}'),
+          );
+          
+          return updateResult;
         },
       );
     } catch (e) {
+      print('❌ Repository: Exception: $e');
       return Left(DatabaseFailure('Failed to mark borrow card as returned: $e'));
     }
   }
